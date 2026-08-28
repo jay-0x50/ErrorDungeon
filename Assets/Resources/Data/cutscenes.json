@@ -1,0 +1,8 @@
+{
+  "cutscenes": [
+    { "id": "CS_00_Opening", "triggerType": "gameStart", "bossId": "", "hpPercent": 0, "skippable": true, "durationSec": 4, "cameraTrack": "opening", "dialogueId": "dlg_opening" },
+    { "id": "CS_01_BossIntro_Doyun", "triggerType": "bossRoomEnter", "bossId": "boss_doyun", "hpPercent": 0, "skippable": true, "durationSec": 3, "cameraTrack": "doyun_intro", "dialogueId": "dlg_doyun_intro" },
+    { "id": "CS_01_BossPhase2_Doyun", "triggerType": "bossHpThreshold", "bossId": "boss_doyun", "hpPercent": 0.5, "skippable": false, "durationSec": 1, "cameraTrack": "doyun_phase2", "dialogueId": "dlg_doyun_phase2" },
+    { "id": "CS_01_BossDeath_Doyun", "triggerType": "bossDeath", "bossId": "boss_doyun", "hpPercent": 0, "skippable": true, "durationSec": 3, "cameraTrack": "doyun_death", "dialogueId": "dlg_doyun_death" }
+  ]
+}

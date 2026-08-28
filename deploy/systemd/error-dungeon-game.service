@@ -1,0 +1,27 @@
+[Unit]
+Description=Error Dungeon Unity Linux dedicated server
+After=network-online.target error-dungeon-api.service
+Wants=network-online.target
+Requires=error-dungeon-api.service
+ConditionFileIsExecutable=/opt/error-dungeon-game/ErrorDungeonServer.x86_64
+
+[Service]
+Type=simple
+User=errordungeon
+Group=errordungeon
+WorkingDirectory=/opt/error-dungeon-game
+Environment=ERROR_DUNGEON_API_URL=http://127.0.0.1:8080/api
+ExecStart=/opt/error-dungeon-game/ErrorDungeonServer.x86_64 -batchmode -nographics -logFile /var/lib/error-dungeon/unity-server.log
+Restart=always
+RestartSec=3
+TimeoutStopSec=20
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/error-dungeon /opt/error-dungeon-game
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

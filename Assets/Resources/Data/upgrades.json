@@ -1,0 +1,36 @@
+{
+  "upgrades": [
+    {
+      "weaponId": "wp_rusted_greatsword",
+      "maxLevel": 10,
+      "levels": [
+        { "level": 1, "costSouls": 300, "materials": [{ "itemId": "mat_iron_shard", "count": 1 }], "atkMul": 1.06 },
+        { "level": 2, "costSouls": 520, "materials": [{ "itemId": "mat_iron_shard", "count": 2 }], "atkMul": 1.12 },
+        { "level": 3, "costSouls": 780, "materials": [{ "itemId": "mat_iron_shard", "count": 3 }], "atkMul": 1.18 },
+        { "level": 4, "costSouls": 1100, "materials": [{ "itemId": "mat_iron_shard", "count": 4 }], "atkMul": 1.25 },
+        { "level": 5, "costSouls": 1500, "materials": [{ "itemId": "mat_iron_shard", "count": 5 }], "atkMul": 1.32 },
+        { "level": 6, "costSouls": 2100, "materials": [{ "itemId": "mat_iron_shard", "count": 6 }], "atkMul": 1.40 },
+        { "level": 7, "costSouls": 2900, "materials": [{ "itemId": "mat_iron_shard", "count": 7 }], "atkMul": 1.48 },
+        { "level": 8, "costSouls": 3900, "materials": [{ "itemId": "mat_iron_shard", "count": 8 }], "atkMul": 1.57 },
+        { "level": 9, "costSouls": 5100, "materials": [{ "itemId": "mat_iron_shard", "count": 9 }], "atkMul": 1.66 },
+        { "level": 10, "costSouls": 6600, "materials": [{ "itemId": "mat_iron_shard", "count": 10 }], "atkMul": 1.76 }
+      ]
+    },
+    {
+      "weaponId": "wp_spear_doyun",
+      "maxLevel": 10,
+      "levels": [
+        { "level": 1, "costSouls": 900, "materials": [{ "itemId": "mat_iron_shard", "count": 2 }], "atkMul": 1.05 },
+        { "level": 2, "costSouls": 1400, "materials": [{ "itemId": "mat_iron_shard", "count": 3 }], "atkMul": 1.10 },
+        { "level": 3, "costSouls": 2100, "materials": [{ "itemId": "mat_iron_shard", "count": 4 }], "atkMul": 1.16 },
+        { "level": 4, "costSouls": 3000, "materials": [{ "itemId": "mat_iron_shard", "count": 5 }], "atkMul": 1.22 },
+        { "level": 5, "costSouls": 4100, "materials": [{ "itemId": "mat_iron_shard", "count": 6 }], "atkMul": 1.29 },
+        { "level": 6, "costSouls": 5400, "materials": [{ "itemId": "mat_iron_shard", "count": 7 }], "atkMul": 1.36 },
+        { "level": 7, "costSouls": 7000, "materials": [{ "itemId": "mat_iron_shard", "count": 8 }], "atkMul": 1.44 },
+        { "level": 8, "costSouls": 8900, "materials": [{ "itemId": "mat_iron_shard", "count": 9 }], "atkMul": 1.52 },
+        { "level": 9, "costSouls": 11200, "materials": [{ "itemId": "mat_iron_shard", "count": 10 }], "atkMul": 1.61 },
+        { "level": 10, "costSouls": 14000, "materials": [{ "itemId": "mat_iron_shard", "count": 12 }], "atkMul": 1.70 }
+      ]
+    }
+  ]
+}

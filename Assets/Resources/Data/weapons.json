@@ -1,0 +1,31 @@
+{
+  "weapons": [
+    {
+      "id": "wp_rusted_greatsword",
+      "name": "녹슨 대검",
+      "type": "greatsword",
+      "rarity": "common",
+      "weight": 12.0,
+      "baseAtk": 92,
+      "guard": { "damageCut": 0.58, "staminaMul": 1.2 },
+      "scaling": { "str": 0.72, "dex": 0.22 },
+      "moveset": "greatsword_basic",
+      "skill": { "id": "sk_heavy_cleave", "cost": 18 },
+      "loreText": "폐성의 병기고에서 발견된 대검. 무뎌졌지만 묵직한 궤적은 여전하다."
+    },
+    {
+      "id": "wp_spear_doyun",
+      "name": "도윤의 장창",
+      "type": "spear",
+      "rarity": "boss",
+      "weight": 7.5,
+      "baseAtk": 155,
+      "guard": { "damageCut": 0.62, "staminaMul": 1.0 },
+      "scaling": { "str": 0.55, "dex": 0.75 },
+      "moveset": "spear_longreach",
+      "skill": { "id": "sk_lightning_thrust", "cost": 18 },
+      "loreText": "폐성의 마지막 장군이 쥐고 있던 창. 날 끝에는 아직도 번개의 잔향이 남아있다."
+    }
+  ]
+}
+

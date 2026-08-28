@@ -1,0 +1,33 @@
+[Unit]
+Description=Error Dungeon FastAPI ranking and save server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=errordungeon
+Group=errordungeon
+WorkingDirectory=/opt/error-dungeon-api
+Environment=PYTHONUNBUFFERED=1
+Environment=ERROR_DUNGEON_DB=/var/lib/error-dungeon/error-dungeon.sqlite3
+Environment="ERROR_DUNGEON_STUDENT=3학년 4반 4번 박재영"
+ExecStart=/opt/error-dungeon-api/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=always
+RestartSec=2
+TimeoutStopSec=15
+KillSignal=SIGINT
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/error-dungeon
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

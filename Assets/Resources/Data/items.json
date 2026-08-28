@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "id": "it_heal_flask",
+      "name": "정화 물약",
+      "type": "consumable",
+      "stackMax": 10,
+      "use": { "healHpFlat": 220, "healHpPct": 0.0, "castTimeSec": 1.1 },
+      "refill": { "atCheckpoint": true, "refillTo": 3 },
+      "loreText": "화톳불에서 길어 올린 맑은 불씨. 몸에 스민 오류를 잠시 몰아낸다."
+    },
+    {
+      "id": "mat_iron_shard",
+      "name": "갈라진 철편",
+      "type": "material",
+      "stackMax": 99,
+      "use": { "healHpFlat": 0, "healHpPct": 0.0, "castTimeSec": 0.0 },
+      "refill": { "atCheckpoint": false, "refillTo": 0 },
+      "loreText": "오류에 부식된 무구에서 떨어져 나온 조각. 아직 단련할 수 있다."
+    }
+  ]
+}
+

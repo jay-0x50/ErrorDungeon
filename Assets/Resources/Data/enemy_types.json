@@ -1,0 +1,50 @@
+{
+  "enemies": [
+    {
+      "id": "soldier_spear_01",
+      "name": "폐성 창병",
+      "tier": "normal",
+      "base": { "hp": 420, "attack": 38, "defense": 12, "poise": 35, "stamina": 60 },
+      "scaling": { "regionLevel": 1, "hpMulPerLevel": 0.18, "atkMulPerLevel": 0.14 },
+      "resist": { "bleed": -0.1, "poison": 0.0, "fire": 0.1, "lightning": 0.0 },
+      "drops": [
+        { "itemId": "mat_iron_shard", "chance": 0.25, "min": 1, "max": 2 },
+        { "itemId": "currency_souls", "chance": 1.0, "min": 40, "max": 65 }
+      ],
+      "aiProfile": "melee_basic"
+    },
+    {
+      "id": "soldier_sword_01",
+      "name": "오류에 물든 검사",
+      "tier": "normal",
+      "base": { "hp": 360, "attack": 44, "defense": 9, "poise": 28, "stamina": 70 },
+      "scaling": { "regionLevel": 1, "hpMulPerLevel": 0.16, "atkMulPerLevel": 0.15 },
+      "resist": { "bleed": 0.0, "poison": 0.0, "fire": 0.0, "lightning": -0.1 },
+      "drops": [{ "itemId": "currency_souls", "chance": 1.0, "min": 45, "max": 70 }],
+      "aiProfile": "melee_aggressive"
+    },
+    {
+      "id": "elite_castle_guard",
+      "name": "폐성 수문장",
+      "tier": "elite",
+      "base": { "hp": 1200, "attack": 72, "defense": 24, "poise": 85, "stamina": 110 },
+      "scaling": { "regionLevel": 1, "hpMulPerLevel": 0.2, "atkMulPerLevel": 0.16 },
+      "resist": { "bleed": 0.15, "poison": 0.1, "fire": 0.1, "lightning": -0.15 },
+      "drops": [
+        { "itemId": "mat_iron_shard", "chance": 1.0, "min": 2, "max": 3 },
+        { "itemId": "currency_souls", "chance": 1.0, "min": 380, "max": 450 }
+      ],
+      "aiProfile": "melee_elite"
+    },
+    {
+      "id": "boss_doyun",
+      "name": "무너진 장군, 도윤",
+      "tier": "boss",
+      "base": { "hp": 6200, "attack": 92, "defense": 30, "poise": 220, "stamina": 180 },
+      "scaling": { "regionLevel": 1, "hpMulPerLevel": 0.0, "atkMulPerLevel": 0.0 },
+      "resist": { "bleed": 0.3, "poison": 0.2, "fire": 0.1, "lightning": -0.25 },
+      "drops": [{ "itemId": "currency_souls", "chance": 1.0, "min": 12000, "max": 12000 }],
+      "aiProfile": "boss_doyun"
+    }
+  ]
+}

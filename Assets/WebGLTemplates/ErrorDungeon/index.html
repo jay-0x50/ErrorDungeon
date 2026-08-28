@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <title>{{{ PRODUCT_NAME }}}</title>
+  <style>
+    :root { color-scheme:dark; --bg:#05070b; --panel:#0b0f16e8; --line:#ffffff22; --ink:#eee9df; --muted:#aaa59b; --ember:#dd6b32; --live:#76d395; }
+    * { box-sizing:border-box; }
+    html,body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--bg); color:var(--ink); font-family:system-ui,sans-serif; }
+    body { display:grid; grid-template-rows:58px minmax(0,1fr); background:radial-gradient(circle at 75% 0,#19253b 0,#080a0f 40%,#030407 100%); }
+    header { z-index:5; display:flex; align-items:center; gap:22px; padding:0 22px; border-bottom:1px solid var(--line); background:#070a0ff2; }
+    .brand { font-family:Georgia,serif; font-size:24px; letter-spacing:.03em; white-space:nowrap; }
+    .brand b { color:var(--ember); font-weight:500; }
+    .identity { color:var(--muted); font-size:13px; white-space:nowrap; }
+    .server { margin-left:auto; color:var(--muted); font:12px ui-monospace,monospace; white-space:nowrap; }
+    .server.online { color:var(--live); }
+    .status-link,.fullscreen { border:1px solid var(--line); background:#ffffff08; color:var(--ink); padding:8px 11px; text-decoration:none; cursor:pointer; font-size:12px; }
+    main { position:relative; min-height:0; display:grid; place-items:center; }
+    #unity-container { position:absolute; inset:0; display:grid; place-items:center; }
+    #unity-canvas { width:100%; height:100%; background:#080a0e; outline:none; }
+    #loading { position:absolute; left:50%; top:50%; width:min(420px,70vw); transform:translate(-50%,-50%); text-align:center; z-index:3; }
+    #loading-title { margin-bottom:14px; font-family:Georgia,serif; font-size:34px; }
+    #loading-track { height:3px; overflow:hidden; background:#ffffff1c; }
+    #loading-fill { width:0; height:100%; background:linear-gradient(90deg,#8d351f,var(--ember)); transition:width .1s linear; }
+    #loading-text { margin-top:10px; color:var(--muted); font:12px ui-monospace,monospace; }
+    #banner { position:absolute; top:12px; left:50%; z-index:8; transform:translateX(-50%); max-width:min(720px,90vw); padding:10px 14px; border:1px solid #db6b45; background:#21100de8; display:none; }
+    @media(max-width:760px) { body { grid-template-rows:48px minmax(0,1fr); } header { padding:0 10px; gap:10px; } .brand { font-size:18px; } .identity,.status-link { display:none; } .server { overflow:hidden; text-overflow:ellipsis; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><b>ERROR</b> DUNGEON</div>
+    <div class="identity" id="identity">3학년 4반 4번 박재영</div>
+    <div class="server" id="server-status">● 서버 연결 중</div>
+    <a class="status-link" href="/status" target="_blank" rel="noopener">서버 현황</a>
+    <button class="fullscreen" id="fullscreen" type="button">전체화면</button>
+  </header>
+  <main>
+    <div id="unity-container">
+      <canvas id="unity-canvas" width="{{{ WIDTH }}}" height="{{{ HEIGHT }}}" tabindex="-1"></canvas>
+      <div id="loading">
+        <div id="loading-title">Error Dungeon</div>
+        <div id="loading-track"><div id="loading-fill"></div></div>
+        <div id="loading-text">게임 데이터 준비 중 · 0%</div>
+      </div>
+      <div id="banner"></div>
+    </div>
+  </main>
+  <script>
+    const canvas = document.querySelector('#unity-canvas');
+    const loading = document.querySelector('#loading');
+    const loadingFill = document.querySelector('#loading-fill');
+    const loadingText = document.querySelector('#loading-text');
+    const banner = document.querySelector('#banner');
+    const statusNode = document.querySelector('#server-status');
+    let unityInstance = null;
+
+    function showBanner(message, type) {
+      banner.textContent = message;
+      banner.style.display = 'block';
+      banner.style.borderColor = type === 'error' ? '#e35454' : '#db6b45';
+      if (type !== 'error') setTimeout(() => banner.style.display = 'none', 5000);
+    }
+
+    fetch('/api/page-session', { cache:'no-store' })
+      .then(response => { if (!response.ok) throw new Error(String(response.status)); return response.json(); })
+      .then(data => {
+        document.querySelector('#identity').textContent = data.studentIdentity;
+        statusNode.textContent = `● ONLINE · ${data.serverTime} · 방문 ${data.visits}`;
+        statusNode.classList.add('online');
+      })
+      .catch(() => { statusNode.textContent = '● API 연결 실패'; });
+
+    const buildUrl = 'Build';
+    const loaderUrl = buildUrl + '/{{{ LOADER_FILENAME }}}';
+    const config = {
+      dataUrl: buildUrl + '/{{{ DATA_FILENAME }}}',
+      frameworkUrl: buildUrl + '/{{{ FRAMEWORK_FILENAME }}}',
+      codeUrl: buildUrl + '/{{{ CODE_FILENAME }}}',
+      streamingAssetsUrl: 'StreamingAssets',
+      companyName: '{{{ COMPANY_NAME }}}',
+      productName: '{{{ PRODUCT_NAME }}}',
+      productVersion: '{{{ PRODUCT_VERSION }}}',
+      showBanner
+    };
+
+    const script = document.createElement('script');
+    script.src = loaderUrl;
+    script.onload = () => {
+      createUnityInstance(canvas, config, progress => {
+        const percent = Math.round(progress * 100);
+        loadingFill.style.width = percent + '%';
+        loadingText.textContent = `게임 데이터 준비 중 · ${percent}%`;
+      }).then(instance => {
+        unityInstance = instance;
+        loading.style.display = 'none';
+        canvas.focus();
+      }).catch(error => showBanner(String(error), 'error'));
+    };
+    script.onerror = () => showBanner('Unity 로더를 불러오지 못했습니다.', 'error');
+    document.body.appendChild(script);
+
+    document.querySelector('#fullscreen').addEventListener('click', () => {
+      if (unityInstance) unityInstance.SetFullscreen(1);
+    });
+    canvas.addEventListener('click', () => canvas.focus());
+  </script>
+</body>
+</html>
