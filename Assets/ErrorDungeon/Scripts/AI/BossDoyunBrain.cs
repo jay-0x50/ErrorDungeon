@@ -10,6 +10,7 @@ namespace ErrorDungeon
         private CharacterController controller;
         private CombatVitals vitals;
         private ActorStateMachine state;
+        private ProceduralHumanoidAnimator combatAnimator;
         private Transform player;
         private Vector3 home;
         private float attackPower;
@@ -18,6 +19,8 @@ namespace ErrorDungeon
         private bool phaseTwo;
         private bool initialized;
         private Renderer[] renderers;
+        private Color[] originalColors;
+        private Light errorLight;
 
         public bool IsActivated => activated && !vitals.IsDead;
         public bool IsPhaseTwo => phaseTwo;
@@ -40,16 +43,27 @@ namespace ErrorDungeon
             attackPower = data?.@base.attack ?? 92f;
             vitals.Configure(Faction.Enemy, data?.@base.hp ?? 6200f, data?.@base.stamina ?? 180f,
                 data?.@base.defense ?? 30f, data?.@base.poise ?? 220f, 12000);
+            vitals.Damaged -= OnDamaged;
+            vitals.Died -= OnDeath;
+            vitals.Damaged += OnDamaged;
             vitals.Died += OnDeath;
-            renderers = GetComponentsInChildren<Renderer>();
+            CaptureVisuals();
             initialized = true;
         }
 
         private void Start()
         {
             if (!initialized) Initialize(transform.position);
-            renderers = GetComponentsInChildren<Renderer>();
+            CaptureVisuals();
+            combatAnimator = GetComponentInChildren<ProceduralHumanoidAnimator>();
             FindPlayer();
+        }
+
+        private void OnDestroy()
+        {
+            if (vitals == null) return;
+            vitals.Damaged -= OnDamaged;
+            vitals.Died -= OnDeath;
         }
 
         private void Update()
@@ -88,22 +102,32 @@ namespace ErrorDungeon
 
         private IEnumerator Combo(int count, float gap, float windup, float recovery)
         {
+            if (combatAnimator == null) combatAnimator = GetComponentInChildren<ProceduralHumanoidAnimator>();
+            combatAnimator?.BeginAttack(windup, gap, 0);
             state.Force(ActorState.Attack, windup + gap * count + recovery);
+            Telegraph(new Color(0.18f, 0.62f, 1f), phaseTwo ? 5.4f : 4.2f);
             yield return new WaitForSeconds(windup);
-            for (var i = 0; i < count && !vitals.IsDead; i++)
+            if (vitals.IsDead || state.Current != ActorState.Attack) yield break;
+            for (var i = 0; i < count && !vitals.IsDead && state.Current == ActorState.Attack; i++)
             {
                 Face(player.position);
                 DealDamage(2.2f, 1.2f, attackPower * (i == count - 1 ? 1.2f : 0.82f), true, 44f);
+                if (i + 1 < count) combatAnimator?.BeginAttack(gap * 0.72f, gap * 0.28f, i + 1);
                 yield return new WaitForSeconds(gap);
             }
+            if (state.Current != ActorState.Attack) yield break;
             yield return new WaitForSeconds(recovery);
             ReleaseAttack();
         }
 
         private IEnumerator Sweep()
         {
+            if (combatAnimator == null) combatAnimator = GetComponentInChildren<ProceduralHumanoidAnimator>();
+            combatAnimator?.BeginAttack(0.62f, 0.93f, 1);
             state.Force(ActorState.Attack, 1.55f);
+            Telegraph(new Color(1f, 0.06f, 0.42f), 5.4f);
             yield return new WaitForSeconds(0.62f);
+            if (vitals.IsDead || state.Current != ActorState.Attack) yield break;
             DealDamage(2.8f, 1.2f, attackPower * 1.15f, true, 58f);
             yield return new WaitForSeconds(0.93f);
             ReleaseAttack();
@@ -111,8 +135,12 @@ namespace ErrorDungeon
 
         private IEnumerator JumpSlam()
         {
+            if (combatAnimator == null) combatAnimator = GetComponentInChildren<ProceduralHumanoidAnimator>();
+            combatAnimator?.BeginAttack(0.7f, 1.15f, 2);
             state.Force(ActorState.Attack, 1.85f);
+            Telegraph(new Color(0.82f, 0.1f, 0.75f), 6.2f);
             yield return new WaitForSeconds(0.7f);
+            if (vitals.IsDead || state.Current != ActorState.Attack) yield break;
             var direction = Vector3.ProjectOnPlane(player.position - transform.position, Vector3.up).normalized;
             var travelEnds = Time.time + 0.34f;
             while (Time.time < travelEnds)
@@ -127,8 +155,12 @@ namespace ErrorDungeon
 
         private IEnumerator LightningCharge()
         {
+            if (combatAnimator == null) combatAnimator = GetComponentInChildren<ProceduralHumanoidAnimator>();
+            combatAnimator?.BeginAttack(0.7f, 1.4f, 3);
             state.Force(ActorState.Attack, 2.1f);
+            Telegraph(new Color(0.04f, 0.82f, 1f), 7.5f);
             yield return new WaitForSeconds(0.7f);
+            if (vitals.IsDead || state.Current != ActorState.Attack) yield break;
             var direction = Vector3.ProjectOnPlane(player.position - transform.position, Vector3.up).normalized;
             Face(transform.position + direction);
             var travelEnds = Time.time + 0.58f;
@@ -151,6 +183,7 @@ namespace ErrorDungeon
             GameSession.Instance?.ShowNarrative("오류가... 나를 삼키는구나.", 1.8f);
             foreach (var renderer in renderers)
                 renderer.material.color = Color.Lerp(renderer.material.color, new Color(0.25f, 0.5f, 1f), 0.62f);
+            Telegraph(new Color(1f, 0.04f, 0.48f), 8f);
             yield return new WaitForSeconds(1f);
             state.Force(ActorState.Idle);
             nextPatternTime = Time.time + 0.35f;
@@ -177,6 +210,13 @@ namespace ErrorDungeon
             nextPatternTime = Time.time + 2.2f;
         }
 
+        private void OnDamaged(CombatVitals damaged, DamageInfo hit, float damage)
+        {
+            if (state.Current == ActorState.Cutscene) return;
+            StopAllCoroutines();
+            nextPatternTime = Time.time + (phaseTwo ? 0.22f : 0.35f);
+        }
+
         public void ResetEnemy()
         {
             gameObject.SetActive(true);
@@ -188,8 +228,10 @@ namespace ErrorDungeon
             activated = false;
             phaseTwo = false;
             nextPatternTime = Time.time + 1f;
-            if (renderers != null)
-                foreach (var renderer in renderers) renderer.material.color = new Color(0.2f, 0.2f, 0.23f);
+            if (renderers != null && originalColors != null)
+                for (var i = 0; i < renderers.Length && i < originalColors.Length; i++)
+                    renderers[i].material.color = originalColors[i];
+            Telegraph(new Color(0.04f, 0.42f, 1f), 3.1f);
         }
 
         private void OnDeath(CombatVitals dead, GameObject killer)
@@ -228,6 +270,22 @@ namespace ErrorDungeon
         private void ReleaseAttack()
         {
             if (!vitals.IsDead && state.Current == ActorState.Attack) state.ReleaseToLocomotion();
+            Telegraph(phaseTwo ? new Color(0.42f, 0.12f, 1f) : new Color(0.04f, 0.42f, 1f), phaseTwo ? 4.1f : 3.1f);
+        }
+
+        private void CaptureVisuals()
+        {
+            renderers = GetComponentsInChildren<Renderer>();
+            originalColors = new Color[renderers.Length];
+            for (var i = 0; i < renderers.Length; i++) originalColors[i] = renderers[i].material.color;
+            errorLight = GetComponentInChildren<Light>();
+        }
+
+        private void Telegraph(Color color, float intensity)
+        {
+            if (errorLight == null) return;
+            errorLight.color = color;
+            errorLight.intensity = intensity;
         }
 
         private IEnumerator ReleaseCutsceneAfter(float duration)

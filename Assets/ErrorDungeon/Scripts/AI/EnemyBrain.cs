@@ -9,6 +9,7 @@ namespace ErrorDungeon
         private CharacterController controller;
         private CombatVitals vitals;
         private ActorStateMachine state;
+        private ProceduralHumanoidAnimator combatAnimator;
         private Transform player;
         private Vector3 home;
         private string dataId;
@@ -28,6 +29,9 @@ namespace ErrorDungeon
             attackPower = data.@base.attack;
             var reward = data.tier == "elite" ? 420 : 55;
             vitals.Configure(Faction.Enemy, data.@base.hp, data.@base.stamina, data.@base.defense, data.@base.poise, reward);
+            vitals.Damaged -= OnDamaged;
+            vitals.Died -= OnDeath;
+            vitals.Damaged += OnDamaged;
             vitals.Died += OnDeath;
             initialized = true;
         }
@@ -35,7 +39,15 @@ namespace ErrorDungeon
         private void Start()
         {
             if (!initialized) Initialize("soldier_spear_01", transform.position);
+            combatAnimator = GetComponentInChildren<ProceduralHumanoidAnimator>();
             FindPlayer();
+        }
+
+        private void OnDestroy()
+        {
+            if (vitals == null) return;
+            vitals.Damaged -= OnDamaged;
+            vitals.Died -= OnDeath;
         }
 
         private void Update()
@@ -62,11 +74,13 @@ namespace ErrorDungeon
         private IEnumerator AttackRoutine()
         {
             var elite = dataId == "elite_castle_guard";
-            var windup = elite ? 0.58f : 0.42f;
-            var recovery = elite ? 1.0f : 0.72f;
+            var windup = elite ? 0.42f : 0.28f;
+            var recovery = elite ? 0.64f : 0.44f;
+            if (combatAnimator == null) combatAnimator = GetComponentInChildren<ProceduralHumanoidAnimator>();
+            combatAnimator?.BeginAttack(windup, recovery, GetInstanceID() ^ Time.frameCount);
             state.Force(ActorState.Attack, windup + recovery);
             yield return new WaitForSeconds(windup);
-            if (!vitals.IsDead)
+            if (!vitals.IsDead && state.Current == ActorState.Attack)
             {
                 var center = transform.position + Vector3.up + transform.forward * 1.25f;
                 foreach (var hit in Physics.OverlapSphere(center, elite ? 1.3f : 1.0f, ~0, QueryTriggerInteraction.Ignore))
@@ -82,6 +96,12 @@ namespace ErrorDungeon
             yield return new WaitForSeconds(recovery);
             nextAttackTime = Time.time + Random.Range(0.35f, 0.9f);
             if (!vitals.IsDead && state.Current == ActorState.Attack) state.ReleaseToLocomotion();
+        }
+
+        private void OnDamaged(CombatVitals damaged, DamageInfo hit, float damage)
+        {
+            StopAllCoroutines();
+            nextAttackTime = Time.time + Random.Range(0.35f, 0.55f);
         }
 
         public void OnParried(GameObject byActor)

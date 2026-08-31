@@ -19,16 +19,16 @@ namespace ErrorDungeon
         public bool TryEnter(ActorState next, float lockSeconds = 0f, bool force = false)
         {
             if (!force && !CanTransition(next)) return false;
-            SetState(next, lockSeconds);
+            SetState(next, lockSeconds, force);
             return true;
         }
 
-        public void Force(ActorState next, float lockSeconds = 0f) => SetState(next, lockSeconds);
+        public void Force(ActorState next, float lockSeconds = 0f) => SetState(next, lockSeconds, true);
 
         public void ReleaseToLocomotion()
         {
             if (IsDead || Current == ActorState.Cutscene) return;
-            SetState(ActorState.Idle, 0f);
+            SetState(ActorState.Idle, 0f, true);
         }
 
         private void Update()
@@ -49,11 +49,12 @@ namespace ErrorDungeon
             return true;
         }
 
-        private void SetState(ActorState next, float lockSeconds)
+        private void SetState(ActorState next, float lockSeconds, bool replaceLock = false)
         {
             var previous = Current;
             Current = next;
-            LockedUntil = Mathf.Max(LockedUntil, Time.time + Mathf.Max(0f, lockSeconds));
+            var requestedLock = Time.time + Mathf.Max(0f, lockSeconds);
+            LockedUntil = replaceLock ? requestedLock : Mathf.Max(LockedUntil, requestedLock);
             if (next == ActorState.Idle || next == ActorState.Locomotion) LockedUntil = Time.time;
             Changed?.Invoke(previous, next);
         }

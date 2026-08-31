@@ -12,12 +12,21 @@ namespace ErrorDungeon
         private PlayerMotor motor;
         private PlayerProgression progression;
         private LockOnSystem lockOn;
+        private ProceduralHumanoidAnimator combatAnimator;
         private bool guarding;
         private float invulnerableFrom;
         private float invulnerableUntil;
         private float parryFrom;
         private float parryUntil;
         private int nextAttackId;
+        private int nextComboStep;
+        private int activeComboStep = -1;
+        private float comboExpiresAt;
+        private bool lightAttackBuffered;
+        private Coroutine attackRoutine;
+
+        public int ActiveComboStep => activeComboStep;
+        public bool ComboWindowOpen => activeComboStep >= 0 || Time.time <= comboExpiresAt;
 
         private void Awake()
         {
@@ -26,6 +35,14 @@ namespace ErrorDungeon
             motor = GetComponent<PlayerMotor>();
             progression = GetComponent<PlayerProgression>();
             lockOn = GetComponent<LockOnSystem>();
+            vitals.Damaged += OnDamaged;
+        }
+
+        private void Start() => combatAnimator = GetComponentInChildren<ProceduralHumanoidAnimator>();
+
+        private void OnDestroy()
+        {
+            if (vitals != null) vitals.Damaged -= OnDamaged;
         }
 
         private void Update()
@@ -46,15 +63,19 @@ namespace ErrorDungeon
             if (Input.GetMouseButtonDown(0))
             {
                 if (Input.GetKey(KeyCode.LeftShift)) TryAttack(AttackKind.Heavy);
-                else TryAttack(AttackKind.Light);
+                else QueueLightAttack();
             }
+
+            if (state.Current != ActorState.Attack && Time.time > comboExpiresAt && activeComboStep < 0)
+                nextComboStep = 0;
         }
 
         public HitOutcome ResolveIncomingHit(ref DamageInfo hit)
         {
-            if (Time.time >= invulnerableFrom && Time.time <= invulnerableUntil) return HitOutcome.Evaded;
+            if (invulnerableUntil > invulnerableFrom && Time.time >= invulnerableFrom && Time.time <= invulnerableUntil)
+                return HitOutcome.Evaded;
 
-            if (hit.Parryable && Time.time >= parryFrom && Time.time <= parryUntil)
+            if (hit.Parryable && parryUntil > parryFrom && Time.time >= parryFrom && Time.time <= parryUntil)
             {
                 var receiver = hit.Attacker != null ? hit.Attacker.GetComponentInParent<IParryReceiver>() : null;
                 receiver?.OnParried(gameObject);
@@ -77,27 +98,127 @@ namespace ErrorDungeon
             return HitOutcome.Damaged;
         }
 
-        private void TryAttack(AttackKind kind)
+        private void QueueLightAttack()
         {
-            if (guarding || state.IsLocked || state.Current == ActorState.Dodge || state.Current == ActorState.Parry) return;
-            var staminaCost = kind == AttackKind.Light ? 14f : 22f;
-            if (!vitals.TrySpendStamina(staminaCost)) return;
-            StartCoroutine(AttackRoutine(kind));
+            if (state.Current == ActorState.Attack && attackRoutine != null)
+            {
+                lightAttackBuffered = true;
+                return;
+            }
+            TryAttack(AttackKind.Light);
         }
 
-        private IEnumerator AttackRoutine(AttackKind kind)
+        private void TryAttack(AttackKind kind)
         {
-            var heavy = kind != AttackKind.Light;
-            var windup = heavy ? 0.48f : 0.24f;
-            var recovery = heavy ? 0.72f : 0.42f;
-            var motion = heavy ? 1.6f : 1f;
-            state.Force(ActorState.Attack, windup + recovery);
-            if (lockOn.Target != null) motor.FaceTarget(lockOn.Target.position);
-            yield return new WaitForSeconds(windup);
+            if (guarding || state.IsLocked || state.Current == ActorState.Dodge || state.Current == ActorState.Parry)
+                return;
 
+            if (kind == AttackKind.Light)
+            {
+                if (Time.time > comboExpiresAt) nextComboStep = 0;
+                if (!vitals.TrySpendStamina(LightStamina(nextComboStep))) return;
+                attackRoutine = StartCoroutine(LightComboRoutine(nextComboStep));
+                return;
+            }
+
+            if (!vitals.TrySpendStamina(22f)) return;
+            ResetCombo();
+            attackRoutine = StartCoroutine(HeavyAttackRoutine());
+        }
+
+        private IEnumerator LightComboRoutine(int startingStep)
+        {
+            var step = Mathf.Clamp(startingStep, 0, 2);
+            while (!vitals.IsDead)
+            {
+                activeComboStep = step;
+                lightAttackBuffered = false;
+                var windup = step == 0 ? 0.13f : step == 1 ? 0.12f : 0.18f;
+                var recovery = step == 0 ? 0.21f : step == 1 ? 0.2f : 0.32f;
+                var motion = step == 0 ? 0.92f : step == 1 ? 1.04f : 1.34f;
+                var poiseDamage = step == 2 ? 42f : step == 1 ? 27f : 22f;
+                var reach = step == 2 ? 1.32f : step == 1 ? 1.14f : 1.08f;
+                var radius = step == 2 ? 1.18f : 1.05f;
+
+                BeginAttackAnimation(windup, recovery, step);
+                state.Force(ActorState.Attack, windup + recovery);
+                FaceLockedTarget();
+                yield return new WaitForSeconds(windup);
+                if (vitals.IsDead || state.Current != ActorState.Attack)
+                {
+                    CancelComboAfterInterrupt();
+                    yield break;
+                }
+
+                motor.AttackStep(step == 2 ? 0.48f : 0.2f);
+                DealAttackDamage(motion, 20f + step * 4f, poiseDamage, reach, radius);
+                yield return new WaitForSeconds(recovery);
+                if (vitals.IsDead || state.Current != ActorState.Attack)
+                {
+                    CancelComboAfterInterrupt();
+                    yield break;
+                }
+
+                var nextStep = (step + 1) % 3;
+                nextComboStep = nextStep;
+                comboExpiresAt = Time.time + (step == 2 ? 0.36f : 0.58f);
+                if (!lightAttackBuffered)
+                {
+                    activeComboStep = -1;
+                    attackRoutine = null;
+                    state.ReleaseToLocomotion();
+                    yield break;
+                }
+
+                if (!vitals.TrySpendStamina(LightStamina(nextStep)))
+                {
+                    activeComboStep = -1;
+                    attackRoutine = null;
+                    state.ReleaseToLocomotion();
+                    yield break;
+                }
+                step = nextStep;
+            }
+            CancelComboAfterInterrupt();
+        }
+
+        private IEnumerator HeavyAttackRoutine()
+        {
+            const float windup = 0.32f;
+            const float recovery = 0.46f;
+            BeginAttackAnimation(windup, recovery, 5);
+            state.Force(ActorState.Attack, windup + recovery);
+            FaceLockedTarget();
+            yield return new WaitForSeconds(windup);
+            if (vitals.IsDead || state.Current != ActorState.Attack)
+            {
+                attackRoutine = null;
+                yield break;
+            }
+
+            motor.AttackStep(0.38f);
+            DealAttackDamage(1.62f, 38f, 50f, 1.38f, 1.34f);
+            yield return new WaitForSeconds(recovery);
+            attackRoutine = null;
+            if (!state.IsDead && state.Current == ActorState.Attack) state.ReleaseToLocomotion();
+        }
+
+        private void BeginAttackAnimation(float windup, float recovery, int variant)
+        {
+            if (combatAnimator == null) combatAnimator = GetComponentInChildren<ProceduralHumanoidAnimator>();
+            combatAnimator?.BeginAttack(windup, recovery, variant);
+        }
+
+        private void FaceLockedTarget()
+        {
+            if (lockOn.Target != null) motor.FaceTarget(lockOn.Target.position);
+        }
+
+        private void DealAttackDamage(float motion, float staminaDamage, float poiseDamage, float reach,
+            float radius)
+        {
             var attackId = ++nextAttackId;
-            var center = transform.position + Vector3.up * 1.05f + transform.forward * (heavy ? 1.35f : 1.05f);
-            var radius = heavy ? 1.35f : 1.05f;
+            var center = transform.position + Vector3.up * 1.05f + transform.forward * reach;
             var hits = Physics.OverlapSphere(center, radius, ~0, QueryTriggerInteraction.Ignore);
             var damaged = new HashSet<CombatVitals>();
             foreach (var collider in hits)
@@ -106,12 +227,38 @@ namespace ErrorDungeon
                 if (target == null || target.Faction != Faction.Enemy || !damaged.Add(target)) continue;
                 var targetState = target.GetComponent<ActorStateMachine>();
                 var critical = targetState != null && targetState.Current == ActorState.Knockdown;
-                var info = new DamageInfo(gameObject, progression.WeaponAttack * motion, heavy ? 38f : 20f,
-                    heavy ? 48f : 24f, false, collider.ClosestPoint(center), transform.forward, attackId, critical);
+                var info = new DamageInfo(gameObject, progression.WeaponAttack * motion, staminaDamage,
+                    poiseDamage, false, collider.ClosestPoint(center), transform.forward, attackId, critical);
                 target.ReceiveHit(info);
             }
-            yield return new WaitForSeconds(recovery);
-            if (!state.IsDead && state.Current == ActorState.Attack) state.ReleaseToLocomotion();
+        }
+
+        private static float LightStamina(int step) => step == 2 ? 17f : step == 1 ? 13f : 12f;
+
+        private void ResetCombo()
+        {
+            lightAttackBuffered = false;
+            nextComboStep = 0;
+            activeComboStep = -1;
+            comboExpiresAt = 0f;
+        }
+
+        private void CancelComboAfterInterrupt()
+        {
+            attackRoutine = null;
+            ResetCombo();
+        }
+
+        private void OnDamaged(CombatVitals damaged, DamageInfo hit, float damage)
+        {
+            StopAllCoroutines();
+            guarding = false;
+            invulnerableFrom = 0f;
+            invulnerableUntil = 0f;
+            parryFrom = 0f;
+            parryUntil = 0f;
+            attackRoutine = null;
+            ResetCombo();
         }
 
         private void TryDodge()
@@ -119,6 +266,12 @@ namespace ErrorDungeon
             if (guarding) EndGuard();
             if (state.IsLocked && state.Current != ActorState.Attack) return;
             if (!vitals.TrySpendStamina(18f)) return;
+            if (attackRoutine != null)
+            {
+                StopCoroutine(attackRoutine);
+                attackRoutine = null;
+                ResetCombo();
+            }
             var load = progression.LoadClass;
             var duration = load == EquipmentLoad.Heavy ? 0.58f : 0.46f;
             var distance = load == EquipmentLoad.Light ? 5.1f : load == EquipmentLoad.Heavy ? 3.4f : 4.3f;

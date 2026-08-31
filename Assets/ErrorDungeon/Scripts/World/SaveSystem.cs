@@ -33,9 +33,11 @@ namespace ErrorDungeon
     [Serializable]
     public sealed class GameSaveData
     {
-        public int version = 1;
+        public int version = 2;
         public PlayerSaveData player;
         public bool doyunDefeated;
+        public string[] discoveredRelics;
+        public bool memoryGateOpen;
         public float totalPlayTime;
         public string savedAtUtc;
     }

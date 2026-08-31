@@ -54,6 +54,7 @@ namespace ErrorDungeon
 
         public void Configure(Faction newFaction, float hp, float stamina, float armor, float poise, int reward)
         {
+            if (state == null) state = GetComponent<ActorStateMachine>();
             faction = newFaction;
             baseHealth = hp;
             baseStamina = stamina;
@@ -76,6 +77,7 @@ namespace ErrorDungeon
 
         public HitOutcome ReceiveHit(DamageInfo hit)
         {
+            if (state == null) state = GetComponent<ActorStateMachine>();
             if (IsDead || hit.Attacker == gameObject) return HitOutcome.Ignored;
             var attackerVitals = hit.Attacker != null ? hit.Attacker.GetComponentInParent<CombatVitals>() : null;
             if (attackerVitals != null && attackerVitals.Faction == faction) return HitOutcome.Ignored;
@@ -100,10 +102,19 @@ namespace ErrorDungeon
                 return HitOutcome.Damaged;
             }
 
-            if (currentPoise <= 0f)
+            var poiseBroken = currentPoise <= 0f;
+            if (poiseBroken) currentPoise = maxPoise;
+
+            if (state.Current != ActorState.Cutscene && state.Current != ActorState.Knockdown)
             {
-                currentPoise = maxPoise;
-                state.Force(ActorState.HitReact, 0.55f);
+                var reactionDuration = poiseBroken
+                    ? (maxPoise >= 150f ? 0.52f : 0.62f)
+                    : maxPoise >= 150f
+                        ? 0.18f
+                        : maxPoise >= 75f
+                            ? 0.25f
+                            : 0.32f;
+                state.Force(ActorState.HitReact, reactionDuration);
             }
             return HitOutcome.Damaged;
         }

@@ -22,6 +22,6 @@ chown -R errordungeon:errordungeon "${TARGET_DIR}"
 chmod 0750 "${TARGET_DIR}/ErrorDungeonServer.x86_64"
 install -o root -g root -m 0644 "${PROJECT_ROOT}/deploy/systemd/error-dungeon-game.service" /etc/systemd/system/error-dungeon-game.service
 systemctl daemon-reload
-systemctl enable --now error-dungeon-game.service
+systemctl enable error-dungeon-game.service
+systemctl restart error-dungeon-game.service
 systemctl --no-pager --full status error-dungeon-game.service
-
